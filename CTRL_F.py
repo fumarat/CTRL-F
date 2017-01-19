@@ -1840,7 +1840,6 @@ def showWindow(event = None):
     top = Toplevel(root)
 
     # bring the new window into focus
-    top.wm_attributes("-topmost", 1)
     top.focus()
 
     # regulate its resize behaviour
@@ -1850,7 +1849,7 @@ def showWindow(event = None):
     top.wm_geometry("")
     top.wm_title("Find in PyMol")
 
-#    top.grab_set()
+    # Put the focus on the new window
     top.focus_force()
 
     top.protocol("WM_DELETE_WINDOW", lambda t=top: resetter(t))
@@ -1861,5 +1860,3 @@ def showWindow(event = None):
     
     # And start the refresh routine
     frame.refresh()
-
-
