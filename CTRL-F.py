@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 
 """
-======
-PyFind
-======
+=======
+CTRL-F
+=======
 
 DESCRIPTION:
 GUI for searching a sequence/regular expression in PyMol objects and/or selections.
@@ -20,9 +20,9 @@ FEATURES:
 > use regular expressions instead of one letter amino acid codes
 
 USAGE:
-Install the PyFind.py plugin with PyMol's plugin installer.
+Install the CTRL-F.py plugin with PyMol's plugin installer.
 See Help window in the GUI for a quick usage reference.
-Otherwise see the readme file in https://github.com/fumarat/PyFind
+Otherwise see the readme file in https://github.com/fumarat/CTRL-F
 
 AUTHOR:
 Max Plach, 2017
@@ -34,7 +34,7 @@ LICENSE:
 BSD-2-Clause, see https://opensource.org/licenses/BSD-2-Clause
 
 USED SOFTWARE:
-PyFind uses findseq by Jason Vertrees, 2009. See https://pymolwiki.org/index.php/Findseq
+CTRL-F uses findseq by Jason Vertrees, 2009. See https://pymolwiki.org/index.php/Findseq
 findseq copyright 2009, Jason Vertrees, BSD-2-Clause
 
 Disclaimer:
@@ -53,10 +53,10 @@ from pymol import cmd, plugins
 import webbrowser
 
 #==========================
-# Create PyFind Application
+# Create CTRL-F Application
 #==========================
 
-class PyFind(Frame):
+class CTRLF(Frame):
 
     #=====================
     # Initialize the class
@@ -462,7 +462,7 @@ class PyFind(Frame):
         )
         _text_version = Label(_frame_2,
             font = "{MS Sans Serif} 10",
-            text = "PyFind v0.9",
+            text = "CTRL-F v1.0",
             wraplength = 200,
         )
         _text_license = Label(_labelframe_1,
@@ -665,7 +665,7 @@ class PyFind(Frame):
         point7 = Label(_frame_2,
             justify = "left",
             font="{MS Sans Serif} 8 underline",
-            text = "https://github.com/fumarat/PyFind",
+            text = "https://github.com/fumarat/CTRL-F",
             wraplength = 400,
             foreground = "#0000EE",
             cursor="hand2",
@@ -1764,21 +1764,24 @@ def __init__(self):
 
     # Set a global variable for tracing if the user pressed the STRG-F key combo for starting the plugin
     # and initialize it with 0
+    # The open_var is necessary to track if already a top window is open
     global trace_var
+    global open_var
     trace_var = 0
+    open_var = 0
 
-    # Register the plugin under the plugin menu and make an entry "PyFind"
-    self.menuBar.addmenuitem("Plugin", "command", "PyFind", label="PyFind", command = lambda s=self : showWindow(s))
+    # Register the plugin under the plugin menu and make an entry "CTRL-F"
+    self.menuBar.addmenuitem("Plugin", "command", "CTRL-F", label="CTRL-F", command = lambda s=self : showWindow(s))
 
     # Make a key binding that can be used from within the PyMol PMG app window
     root = plugins.get_tk_root()
-    root.bind("<Control-f>", showWindow)
+    root.bind("<Control-f>", lambda s=self : toggler(s))
 
     # Make a key bining that can be used from withtin the PyMol viewer
     # this makes a callback to toggler, which toggles the trace_var
     cmd.set_key("CTRL-F", lambda s=self : toggler(s))
     # Do the same thing for the PyMol command
-    cmd.extend("PyFind", lambda s=self : toggler(s))
+    cmd.extend("CTRL-F", lambda s=self : toggler(s))
 
     # Start the checker function
     checker()
@@ -1788,11 +1791,12 @@ def __init__(self):
 def toggler(self, *args):
     # Tell the function about the global variable trace_var
     global trace_var
+    global open_var
 
-    if trace_var == 0:
-        trace_var = 1
-    elif trace_var == 1:
-        trace_var = 0
+    # Only toggle the variable if no window is open yet
+    if open_var == 0:
+        if trace_var == 0:
+            trace_var = 1
 
 
 # Function to check the value of the variable trace_var
@@ -1801,15 +1805,25 @@ def checker():
     root = plugins.get_tk_root()
     # Tell the function about the global trace_var variable
     global trace_var
+    global open_var
 
     # Check if trace_var is 1
     # if yes, start the plugin and set it back to 0
     if trace_var == 1:
         showWindow()
         trace_var = 0
+        open_var = 1
 
     # Continue checking every 10 ms
     root.after(10, checker)
+
+
+# Function to reset the open_var
+# This function is triggered when in the toplevel window the X close button is pressed
+def resetter(self, *args):
+    global open_var
+    open_var = 0
+    self.destroy()
 
 
 
@@ -1834,11 +1848,18 @@ def showWindow(event = None):
     # set window dimensions
     top.minsize(width=300, height=200)
     top.wm_geometry("")
-    top.wm_title("PyFind")
+    top.wm_title("Find in PyMol")
+
+#    top.grab_set()
+    top.focus_force()
+
+    top.protocol("WM_DELETE_WINDOW", lambda t=top: resetter(t))
 
     # Generate the main plugin window
-    frame = PyFind(top)
-    frame.focus()
+    frame = CTRLF(top)
+    frame.focus_force()
     
     # And start the refresh routine
     frame.refresh()
+
+
