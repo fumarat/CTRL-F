@@ -1390,6 +1390,7 @@ class CTRLF(Frame):
         # delete the hits from interactive searches
         # these are always named "interactive"
         cmd.delete("interactive")
+        cmd.delete("interactive_all")
 
         # Show a status message
         self.labelStatusDisplay.configure(text="Cleared all hits")
