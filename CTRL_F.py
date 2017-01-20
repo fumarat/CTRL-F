@@ -1389,6 +1389,7 @@ class CTRLF(Frame):
 
         # delete the hits from interactive searches
         # these are always named "interactive"
+        # or "interactive_all"
         cmd.delete("interactive")
         cmd.delete("interactive_all")
 
