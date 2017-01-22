@@ -409,7 +409,7 @@ class CTRLF(Frame):
         curr_list = self.pymollist
         curr_selection = self.pymol_selection
 
-        if len(curr_list) != len(cmd.get_names("all")):
+        if curr_list != cmd.get_names("all"):
             # first, fill the list ob PyMol objects/selections
             self.fill_pymol_list()
 
