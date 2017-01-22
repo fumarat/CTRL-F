@@ -1681,8 +1681,11 @@ def findseq(needle, haystack, selName=None, het=0, firstOnly=0):
     cmd.iterate("(name ca) and __h", "aaList.append((resi,resn,chain))", space=aaDict)
 
     IDs = [int(x[0]) for x in aaDict['aaList']]
+    print(IDs)
     AAs = ''.join([one_letter[x[1]] for x in aaDict['aaList']])
+    print(AAs)
     chains = [x[2] for x in aaDict['aaList']]
+    print(chains)
 
     reNeedle = re.compile(needle.upper())
     it = reNeedle.finditer(AAs)
