@@ -1695,6 +1695,7 @@ def findseq(needle, haystack, selName=None, het=0, firstOnly=0):
 
     for i in it:
         (start, stop) = i.span()
+        print(start, stop)
         # we found some residues, which chains are they from?
         i_chains = chains[start:stop]
         # are all residues from one chain?
