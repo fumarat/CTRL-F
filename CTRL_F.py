@@ -51,6 +51,7 @@ import random
 import time
 from pymol import cmd, plugins
 import webbrowser
+import datetime
 
 #==========================
 # Create CTRL-F Application
@@ -637,7 +638,15 @@ class CTRLF(Frame):
         point2 = Label(_frame_7,
             anchor = "nw",
             justify = "left",
-            text = "Second, enter the search string and hit \"Find\". The input is assumed as one letter amino acid code. It is possible to use regular expression as search strings. Returned hits will be saved as PyMol selections named after the object/selection that was searched and the search string.",
+            text = "Second, enter the search string and hit \"Find\". The input \
+                    is assumed as one letter amino acid code. It is possible \
+                    to use regular expression as search strings. Returned \
+                    hits will be saved as PyMol selections named afte the \
+                    object/selection that was searched and the search \
+                    string. \n For regex: .* for any number of any amino \
+                    acid, [] put a selection of amino acids in square \
+                    brackets, \\d for any single amino acid. Note that regex \
+                    search is not possible in interactive mode.",
             wraplength = 400,
         )
         point3 = Label(_frame_6,
@@ -1124,57 +1133,70 @@ class CTRLF(Frame):
                 self.action_searchbutton_all_interactive()
  
     #==============================================================
-    # Function for a search witha single selection, non-interactive
+    # Function for a search with a single selection, non-interactive
     #==============================================================
     def action_searchbutton_single(self, *args):
-        # Add the current search to the list of previous searches
-        self.add_list()
 
         # Get the search term
         search_term = self.search_var.get()
+
+        if search_term == "":
+            self.labelStatusDisplay.configure(text="Please provide a search term")
+
+        else:
+            self.searchstrings = []
+            self.searchstrings.append(search_term)
+
+            # Try the following
+            # Go to except, e.g. when no selection or object from the pymol list has been selected
+            try:
+                # Get the single selected object/selection
+
+                # If only one PyMol object is available, automatically select that
+                if len(cmd.get_names("objects",1)) == 1:
+                    search_selection = cmd.get_names("objects",1)[0]
+                # if not, let the user choose from the list of objects/selection
+                else:
+                    search_selection = self.pymol_selection
         
-        self.searchstrings = []
-        self.searchstrings.append(search_term)
+                findseq(self.searchstrings[0], search_selection,
+                        selName="tempsele", het = 0, firstOnly = 0)
 
-        # Try the following
-        # Go to except, e.g. when no selection or object from the pymol list has been selected
-        try:
-            # Get the single selected object/selection
+                if cmd.count_atoms("tempsele") == 0:
+                    cmd.delete("tempsele")
+                    self.labelStatusDisplay.configure(text="Nothing found!")
+                else:
+                    return_fasta = cmd.get_fastastr("tempsele")
+                    return_list = return_fasta.split("\n")
+                    return_seq = return_list[1]
+                    return_sele = "%s_%s" % (search_selection, return_seq)
+                    cmd.set_name("tempsele", return_sele)
 
-            # If only one PyMol object is available, automatically select that
-            if len(cmd.get_names("objects",1)) == 1:
-                search_selection = cmd.get_names("objects",1)[0]
-            # if not, let the user choose from the list of objects/selection
-            else:
-                search_selection = self.pymol_selection
+                    # Append the selection to a list that is needed for deleting old searches
+                    self.oldsearches.append(return_sele)
 
-            # Append the selection to a list that is needed for deleting old searches
-            self.oldsearches.append("%s_%s" % (search_selection, self.searchstrings[0].upper()))
+                    # Display a status message
+                    self.labelStatusDisplay.configure(text="Search saved as %s" %
+                                                      return_sele)
 
-            # Do the search
-            findseq(self.searchstrings[0], search_selection, selName="%s_%s" % (search_selection, self.searchstrings[0].upper()), het=0, firstOnly=0)
+                    # Enable the returned selection
+                    cmd.enable(return_sele)
 
-            # Display a status message
-            self.labelStatusDisplay.configure(text="Search saved as %s_%s" % (search_selection, self.searchstrings[0].upper()))
+            except:
+                # Tell the user something went wrong
+                self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
+            
+            # Now try if the selection that has been found is empty, i.e. nothing has been found
+            # In this case delete the returned selection immediately
+            try:
+                # Check if the selection contains amino acids, thus something has been found
+                if cmd.count_atoms(return_sele) == 0:
+                    self.labelStatusDisplay.configure(text="Nothing found!")
+                    cmd.delete(return_sele)
 
-            # Enable the returned selection
-            cmd.enable("%s_%s" % (search_selection, self.searchstrings[0].upper()))
-
-        except:
-            # Tell the user something went wrong
-            self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
-        
-        # Now try if the selection that has been found is empty, i.e. nothing has been found
-        # In this case delete the returned selection immediately
-        try:
-            # Check if the selection contains amino acids, thus something has been found
-            if cmd.count_atoms(self.oldsearches[-1]) == 0:
-                self.labelStatusDisplay.configure(text="Nothing found!")
-                cmd.delete(self.oldsearches[-1])
-
-        # If the returned selection has something in it (i.e. something has been found), do nothing
-        except:
-            pass
+            # If the returned selection has something in it (i.e. something has been found), do nothing
+            except:
+                pass
 
 
     #================================================================
@@ -1183,111 +1205,157 @@ class CTRLF(Frame):
     def action_searchbutton_single_interactive(self, *args):
         # Get the search term from the entry field (variable self.search_var)
         search_term = self.search_var.get()
-        
-        # Initialize a list of search terms and append the search term
-        self.searchstrings = []
-        self.searchstrings.append(search_term)
 
-        # Try the following
-        # Go to except, e.g. when no selection or object from the pymol list has been selected
-        try:
-            # Get the single selected object/selection
+        if search_term == "":
+            self.labelStatusDisplay.configure(text="Please provide a search term")
 
-            # If only one PyMol object is available, automatically select that
-            if len(cmd.get_names("objects",1)) == 1:
-                search_selection = cmd.get_names("objects",1)[0]
-            # if not, let the user choose from the list of objects/selection
+        else:
+            if not search_term.isalnum():
+                self.labelStatusDisplay.configure(text="Regex not possible in interactive mode")
+
             else:
-                search_selection = self.pymol_selection
+            
+                # Initialize a list of search terms and append the search term
+                self.searchstrings = []
+                self.searchstrings.append(search_term)
 
-#                search_selection = self.searchlist[0]
+                # Try the following
+                # Go to except, e.g. when no selection or object from the pymol list has been selected
+                try:
+                    # Get the single selected object/selection
 
-            # Generate an empty pymol selection, called "interactive"
-            cmd.select("interactive", "None")
+                    # If only one PyMol object is available, automatically select that
+                    if len(cmd.get_names("objects",1)) == 1:
+                        search_selection = cmd.get_names("objects",1)[0]
+                    # if not, let the user choose from the list of objects/selection
+                    else:
+                        search_selection = self.pymol_selection
 
-            # Now do the actual find work
-            # call the findseq function with the following arguments
-            # needle = self.searchstrings[0]
-            # haystack = search_selection
-            # selName = "interactive" --> gets overwritten after each search
-            findseq(self.searchstrings[0], search_selection, selName="interactive", het=0, firstOnly=0)
+        #                search_selection = self.searchlist[0]
 
-            # Tell a status
-            self.labelStatusDisplay.configure(text="Search saved as \"interactive\"" )
+                    # Generate an empty pymol selection, called "interactive"
+                    cmd.select("interactive", "None")
 
-            # Enable the returned selection
-            cmd.enable("interactive")
+                    # Now do the actual find work
+                    # call the findseq function with the following arguments
+                    # needle = self.searchstrings[0]
+                    # haystack = search_selection
+                    # selName = "interactive" --> gets overwritten after each search
+                    findseq(self.searchstrings[0], search_selection, selName="interactive", het=0, firstOnly=0)
+
+                    # Tell a status
+                    self.labelStatusDisplay.configure(text="Search saved as \"interactive\"" )
+
+                    # Enable the returned selection
+                    cmd.enable("interactive")
 
 
-        except:
-            # Tell the user to select a pymol object/selection first
-            self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
+                except:
+                    # Tell the user to select a pymol object/selection first
+                    self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
 
-        
-        # Now try if the selection that has been found is empty, i.e. nothing has been found
-        # In this case delete the returned selection immediately
-        try:
-            # Check if the selection contains amino acids, thus something has been found
-            if cmd.count_atoms("interactive") == 0:
-                self.labelStatusDisplay.configure(text="Nothing found!")
-                cmd.delete("interactive")
+                
+                # Now try if the selection that has been found is empty, i.e. nothing has been found
+                # In this case delete the returned selection immediately
+                try:
+                    # Check if the selection contains amino acids, thus something has been found
+                    if cmd.count_atoms("interactive") == 0:
+                        self.labelStatusDisplay.configure(text="Nothing found!")
+                        cmd.delete("interactive")
 
-        # If the returned selection has something in it (i.e. something has been found), do nothing
-        except:
-            pass
+                # If the returned selection has something in it (i.e. something has been found), do nothing
+                except:
+                    pass
 
     #================================================================
     # Function for a search in all objects/selection, non-interactive
     #================================================================
     def action_searchbutton_all(self, *args):
-        # Add the current search to the list of previous searches
-        self.add_list()
 
         # Get the search term
         search_term = self.search_var.get()
-        
-        self.searchstrings = []
-        self.searchstrings.append(search_term)
 
-        # Try the following
-        # Go to except, e.g. when no selection or object from the pymol list has been selected
-        try: 
-            
-            # Generate a string for combining the intermediary search results into a single selection
-            selection_string = ""
+        if search_term == "":
+            self.labelStatusDisplay.configure(text="Please provide a search term")
 
-            # Itereate through all available pymol objects/selections
-            for i, ObjSel in enumerate(self.pymollist):
-                search_selection = ObjSel            
-                findseq(self.searchstrings[0], search_selection, selName="sele_%i" % i, het=0, firstOnly=0)
+        else:
+            self.searchstrings = []
+            self.searchstrings.append(search_term)
 
-                # Append the current returned selection to the selection_string
-                selection_string += "sele_%i," % i
+            # Try the following
+            # Go to except, e.g. when no selection or object from the pymol list has been selected
+            try: 
+                
+                # Generate a string for combining the intermediary search results into a single selection
+                selection_string = ""
 
-            # Remove last comma from selection string
-            selection_string = selection_string[:-1]
+                # Itereate through all available pymol objects/selections
+                for i, ObjSel in enumerate(self.pymollist):
+                    search_selection = ObjSel            
+                    findseq(self.searchstrings[0], search_selection, selName="sele_%i" % i, het=0, firstOnly=0)
 
-            # Generate a return selection that is named "all_SEARCHSTRING"
-            return_selection = "all_%s" % self.searchstrings[0].upper()
-            cmd.select(return_selection, selection_string)
+                    # Append the current returned selection to the selection_string
+                    selection_string += "sele_%i," % i
 
-            # Delete the intermediary selections
-            for i, ObjSel in enumerate(self.pymollist):
-                cmd.delete("sele_%i" % i)
+                # Remove last comma from selection string
+                selection_string = selection_string[:-1]
 
-            # Append the returned search to the list of oldsearches
-            # Required for cecking if the search is empty or not, see below
-            self.oldsearches.append("all_%s" % self.searchstrings[0].upper())
+                # Generate a return selection that is named "all_SEARCHSTRING"
 
-            # Tell a status
-            self.labelStatusDisplay.configure(text="Search saved as all_%s" % self.searchstrings[0].upper())
+                # if no regex has been provided as a search string
+                if search_term.isalnum():
+                    print("is all num")
+                    return_selection = "all_%s" % self.searchstrings[0].upper()
+                    print("return_selection is %s" % return_selection)
+                    
+                    cmd.select(return_selection, selection_string)
 
-            # Enable the returned selection
-            cmd.enable("all_%s" % self.searchstrings[0].upper())
+                    self.oldsearches.append("all_%s" % self.searchstrings[0])
+
+                    self.labelStatusDisplay.configure(text="Search saved as all_%s" %
+                                                      self.searchstrings[0])
+
+                    cmd.enable("all_%s" % self.searchstrings[0])
+
+                    # Delete the intermediary selections
+                    for i, ObjSel in enumerate(self.pymollist):
+                        cmd.delete("sele_%i" % i)
 
 
-        except:
-            self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
+                else:
+                    print("is not all num")
+                    now = datetime.datetime.now()
+                    rand = "%i%i%i" % (now.hour, now.minute, now.second)
+                    print(rand)
+                    return_selection = "all_%s" % rand
+                    print(return_selection)
+
+                    cmd.select(return_selection, selection_string)
+
+                    self.oldsearches.append("all_%s" % rand)
+
+                    self.labelStatusDisplay.configure(text="Search saved as all_%s" % rand)
+
+                    cmd.enable("all_%s" % rand)
+
+
+                    # Delete the intermediary selections
+                    for i, ObjSel in enumerate(self.pymollist):
+                        cmd.delete("sele_%i" % i)
+
+                # Append the returned search to the list of oldsearches
+                # Required for cecking if the search is empty or not, see below
+#                self.oldsearches.append("all_%s" % self.searchstrings[0].upper())
+
+                # Tell a status
+#                self.labelStatusDisplay.configure(text="Search saved as all_%s" % self.searchstrings[0].upper())
+
+                # Enable the returned selection
+#                cmd.enable("all_%s" % self.searchstrings[0].upper())
+
+
+            except:
+                self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
 
         
         # Now try if the selection that has been found is empty, i.e. nothing has been found
@@ -1309,73 +1377,83 @@ class CTRLF(Frame):
     def action_searchbutton_all_interactive(self, *args):
         # Get the search term
         search_term = self.search_var.get()
-        
-        # Initialize a list for search terms and append the search term to it
-        self.searchstrings = []
-        self.searchstrings.append(search_term)
-
-        # Try the following
-        # Go to except, e.g. when no selection or object from the pymol list has been selected
-        try: 
-            
-            # Generate a string for combining the intermediary search results into a single selection
-            selection_string = ""
-
-            # Generate an empty pymol selection, called "interactive"
-            cmd.select("interactive_all", "None")
-
-            # Iterate through all available pymol objects/selections
-            for i, ObjSel in enumerate(self.pymollist):
-                # Select the pymol selection/object
-                search_selection = ObjSel
-
-                # Now do the actual find work
-                # call the findseq function with the following arguments
-                # needle = self.searchstrings[0]
-                # haystack = search_selection
-                # selName = "interactive" --> gets overwritten after each search
-                findseq(self.searchstrings[0], search_selection, selName="sele_%i" % i, het=0, firstOnly=0)
-
-                # Append the current returned selection to the selection_string
-                selection_string += "sele_%i," % i
-
-            # Remove last comma from selection string
-            selection_string = selection_string[:-1]
-
-            # Generate a return selection that is named "all_SEARCHSTRING"
-            return_selection = "interactive_all"
-            cmd.select(return_selection, selection_string)
-
-            # Delete the intermediary selections
-            for i, ObjSel in enumerate(self.pymollist):
-                cmd.delete("sele_%i" % i)
-
-            # Append the returned search to the list of oldsearches
-            # Required for cecking if the search is empty or not, see below
-            # self.oldsearches.append("all_%s" % self.searchstrings[0])
-
-            # Tell a status
-            self.labelStatusDisplay.configure(text="Search saved as interactive_all")
-
-            # Enable the returned selection
-            cmd.enable("interactive_all")
 
 
-        except:
-            self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
+        if search_term == "":
+            self.labelStatusDisplay.configure(text="Please provide a search term")
 
-        
-        # Now try if the selection that has been found is empty, i.e. nothing has been found
-        # In this case delete the returned selection immediately
-        try:
-            # Check if the selection contains amino acids, thus something has been found
-            if cmd.count_atoms("interactive") == 0:
-                self.labelStatusDisplay.configure(text="Nothing found!")
-                cmd.delete("interactive")
+        else:
+            if not search_term.isalnum():
+                self.labelStatusDisplay.configure(text="Regex not possible in interactive mode")
 
-        # If the returned selection has something in it (i.e. something has been found), do nothing
-        except:
-            pass
+            else:
+
+                # Initialize a list for search terms and append the search term to it
+                self.searchstrings = []
+                self.searchstrings.append(search_term)
+
+                # Try the following
+                # Go to except, e.g. when no selection or object from the pymol list has been selected
+                try: 
+                    
+                    # Generate a string for combining the intermediary search results into a single selection
+                    selection_string = ""
+
+                    # Generate an empty pymol selection, called "interactive"
+                    cmd.select("interactive_all", "None")
+
+                    # Iterate through all available pymol objects/selections
+                    for i, ObjSel in enumerate(self.pymollist):
+                        # Select the pymol selection/object
+                        search_selection = ObjSel
+
+                        # Now do the actual find work
+                        # call the findseq function with the following arguments
+                        # needle = self.searchstrings[0]
+                        # haystack = search_selection
+                        # selName = "interactive" --> gets overwritten after each search
+                        findseq(self.searchstrings[0], search_selection, selName="sele_%i" % i, het=0, firstOnly=0)
+
+                        # Append the current returned selection to the selection_string
+                        selection_string += "sele_%i," % i
+
+                    # Remove last comma from selection string
+                    selection_string = selection_string[:-1]
+
+                    # Generate a return selection that is named "all_SEARCHSTRING"
+                    return_selection = "interactive_all"
+                    cmd.select(return_selection, selection_string)
+
+                    # Delete the intermediary selections
+                    for i, ObjSel in enumerate(self.pymollist):
+                        cmd.delete("sele_%i" % i)
+
+                    # Append the returned search to the list of oldsearches
+                    # Required for cecking if the search is empty or not, see below
+                    # self.oldsearches.append("all_%s" % self.searchstrings[0])
+
+                    # Tell a status
+                    self.labelStatusDisplay.configure(text="Search saved as interactive_all")
+
+                    # Enable the returned selection
+                    cmd.enable("interactive_all")
+
+
+                except:
+                    self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
+
+                
+                # Now try if the selection that has been found is empty, i.e. nothing has been found
+                # In this case delete the returned selection immediately
+                try:
+                    # Check if the selection contains amino acids, thus something has been found
+                    if cmd.count_atoms("interactive") == 0:
+                        self.labelStatusDisplay.configure(text="Nothing found!")
+                        cmd.delete("interactive")
+
+                # If the returned selection has something in it (i.e. something has been found), do nothing
+                except:
+                    pass
 
 
     #====================================
@@ -1681,11 +1759,8 @@ def findseq(needle, haystack, selName=None, het=0, firstOnly=0):
     cmd.iterate("(name ca) and __h", "aaList.append((resi,resn,chain))", space=aaDict)
 
     IDs = [int(x[0]) for x in aaDict['aaList']]
-    print(IDs)
     AAs = ''.join([one_letter[x[1]] for x in aaDict['aaList']])
-    print(AAs)
     chains = [x[2] for x in aaDict['aaList']]
-    print(chains)
 
     reNeedle = re.compile(needle.upper())
     it = reNeedle.finditer(AAs)
@@ -1695,7 +1770,7 @@ def findseq(needle, haystack, selName=None, het=0, firstOnly=0):
 
     for i in it:
         (start, stop) = i.span()
-        print(start, stop)
+        #print((start, stop))
         # we found some residues, which chains are they from?
         i_chains = chains[start:stop]
         # are all residues from one chain?
