@@ -7,7 +7,7 @@ CTRL-F is a plugin for the PyMol molecular visualization software that enables u
 ### Installation
 
 - CTRL-F requires PyMol versions 1.7.6.0 or above.
-- CTRL-F is supported on UNIX/Linux and Windows (tested on Windows 7 and 8.1)
+- CTRL-F is supported on GNU/Linux and Windows (tested on Windows 7 and 8.1)
 
 Get CTRL-F from the Github repository:
 
