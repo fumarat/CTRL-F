@@ -35,6 +35,14 @@ https://github.com/fumarat/CTRL-F/blob/master/CTRL_F.py
 
 Note that sometimes you have to manually switch back to the PyMol viewer window in order to see the updated "interactive" selection when using the **interactive** mode.
 
+### Notes on using regular expression
+
+Instead of providing a strictly alphanumeric search string (i.e. only one-letter code amino acids) you can also use regular expressions to search for various amino acid patters.
+
+- \d for any single amino acid
+- \d+ or .\* for a continuous stretch of any amino acids
+- [] square brackets for selections of amino acids at a single position. For example the search SDF[GKLH]CCV will return a hit in the sequence AAASDFLCCV
+
 
 ### License
 

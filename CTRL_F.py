@@ -638,15 +638,7 @@ class CTRLF(Frame):
         point2 = Label(_frame_7,
             anchor = "nw",
             justify = "left",
-            text = "Second, enter the search string and hit \"Find\". The input \
-                    is assumed as one letter amino acid code. It is possible \
-                    to use regular expression as search strings. Returned \
-                    hits will be saved as PyMol selections named afte the \
-                    object/selection that was searched and the search \
-                    string. \n For regex: .* for any number of any amino \
-                    acid, [] put a selection of amino acids in square \
-                    brackets, \\d for any single amino acid. Note that regex \
-                    search is not possible in interactive mode.",
+            text = "Second, enter the search string and hit \"Find\". The input is assumed as one letter amino acid code. It is possible to use regular expression as search strings. Returned hits will be saved as PyMol selections named afte the object/selection that was searched and the search string. \n For regex: \n \\d for any single amino acid \n \\d+ or .* for any number of continuous amino acids \n [] to wrap a selection of amino acids for a single position. \n Note that regex search is not possible in interactive mode.",
             wraplength = 400,
         )
         point3 = Label(_frame_6,
@@ -1057,6 +1049,7 @@ class CTRLF(Frame):
     def open_url_text(self, event):
         webbrowser.open_new(event.widget.cget("text"))
 
+
     #===============================================================
     # Function to open an url with a lambda function in the callback
     #===============================================================
@@ -1088,9 +1081,6 @@ class CTRLF(Frame):
         self.labelStatusDisplay.configure(text="Selected %s" % self.pymol_selection)
 
 
-
-
-
     #=======================================
     # Function for the searchall checkbutton
     #=======================================
@@ -1098,12 +1088,14 @@ class CTRLF(Frame):
         # store the value of the searchall checkbox into the variable searchall
         searchall = self.searchall.get()
 
+
     #=========================================
     # Function for the interactive checkbutton
     #=========================================
     def action_interactive(self, *args):
         # store the value of the interactive checkbox into the variable interactive
         interactive = self.interactive.get()
+
 
     #======================================
     # Function for the actual search action
@@ -1131,7 +1123,8 @@ class CTRLF(Frame):
                 self.action_searchbutton_single_interactive()
             elif searchall == 1:
                 self.action_searchbutton_all_interactive()
- 
+
+
     #==============================================================
     # Function for a search with a single selection, non-interactive
     #==============================================================
@@ -1158,13 +1151,17 @@ class CTRLF(Frame):
                 # if not, let the user choose from the list of objects/selection
                 else:
                     search_selection = self.pymol_selection
-        
+
+                # do the search and name it tempsele
                 findseq(self.searchstrings[0], search_selection,
                         selName="tempsele", het = 0, firstOnly = 0)
 
+                # if there are no atoms in the tempsele, i.e. nothing has been found, delete it
                 if cmd.count_atoms("tempsele") == 0:
                     cmd.delete("tempsele")
                     self.labelStatusDisplay.configure(text="Nothing found!")
+                # else, get the amino acid sequence of the returned sele
+                # and name the returned sele by its object and the returned amino acids
                 else:
                     return_fasta = cmd.get_fastastr("tempsele")
                     return_list = return_fasta.split("\n")
@@ -1230,8 +1227,6 @@ class CTRLF(Frame):
                     # if not, let the user choose from the list of objects/selection
                     else:
                         search_selection = self.pymol_selection
-
-        #                search_selection = self.searchlist[0]
 
                     # Generate an empty pymol selection, called "interactive"
                     cmd.select("interactive", "None")
@@ -1304,12 +1299,8 @@ class CTRLF(Frame):
 
                 # if no regex has been provided as a search string
                 if search_term.isalnum():
-                    print("is all num")
-                    return_selection = "all_%s" % self.searchstrings[0].upper()
-                    print("return_selection is %s" % return_selection)
-                    
+                    return_selection = "all_%s" % self.searchstrings[0].upper()                    
                     cmd.select(return_selection, selection_string)
-
                     self.oldsearches.append("all_%s" % self.searchstrings[0])
 
                     self.labelStatusDisplay.configure(text="Search saved as all_%s" %
@@ -1321,38 +1312,34 @@ class CTRLF(Frame):
                     for i, ObjSel in enumerate(self.pymollist):
                         cmd.delete("sele_%i" % i)
 
-
+                # if regex has been used as a search string
+                # it is not possible to name a Pymol selection (i.e. the returned hit)
+                # with regex special characters
+                # thus the returned hit will be named with the current datetime stamp
                 else:
-                    print("is not all num")
+                    # get the current datetime
                     now = datetime.datetime.now()
+                    # and make a timestamp out of it
                     rand = "%i%i%i" % (now.hour, now.minute, now.second)
-                    print(rand)
-                    return_selection = "all_%s" % rand
-                    print(return_selection)
 
+                    # and generate a name for the returned hit selection
+                    return_selection = "all_%s" % rand
+
+                    # combine all temporary hit selection to the final return selection
                     cmd.select(return_selection, selection_string)
 
+                    # append the hit to the list of previous hits
                     self.oldsearches.append("all_%s" % rand)
 
+                    # display a status message
                     self.labelStatusDisplay.configure(text="Search saved as all_%s" % rand)
 
+                    # and show the returned selection
                     cmd.enable("all_%s" % rand)
-
 
                     # Delete the intermediary selections
                     for i, ObjSel in enumerate(self.pymollist):
                         cmd.delete("sele_%i" % i)
-
-                # Append the returned search to the list of oldsearches
-                # Required for cecking if the search is empty or not, see below
-#                self.oldsearches.append("all_%s" % self.searchstrings[0].upper())
-
-                # Tell a status
-#                self.labelStatusDisplay.configure(text="Search saved as all_%s" % self.searchstrings[0].upper())
-
-                # Enable the returned selection
-#                cmd.enable("all_%s" % self.searchstrings[0].upper())
-
 
             except:
                 self.labelStatusDisplay.configure(text="Warning, select Object/Selection first!")
@@ -1770,7 +1757,6 @@ def findseq(needle, haystack, selName=None, het=0, firstOnly=0):
 
     for i in it:
         (start, stop) = i.span()
-        #print((start, stop))
         # we found some residues, which chains are they from?
         i_chains = chains[start:stop]
         # are all residues from one chain?
