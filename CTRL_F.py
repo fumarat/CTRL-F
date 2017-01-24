@@ -1434,9 +1434,9 @@ class CTRLF(Frame):
                 # In this case delete the returned selection immediately
                 try:
                     # Check if the selection contains amino acids, thus something has been found
-                    if cmd.count_atoms("interactive") == 0:
+                    if cmd.count_atoms("interactive_all") == 0:
                         self.labelStatusDisplay.configure(text="Nothing found!")
-                        cmd.delete("interactive")
+                        cmd.delete("interactive_all")
 
                 # If the returned selection has something in it (i.e. something has been found), do nothing
                 except:
